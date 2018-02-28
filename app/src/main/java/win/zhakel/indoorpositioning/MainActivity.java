@@ -103,6 +103,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 //            }
 //        };
         new Thread(wifiScanR).start();
+        float mytest = 0.01f;
 
     }
 
