@@ -10,7 +10,8 @@ import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ import java.util.List;
 
 import static java.lang.Thread.sleep;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
+public class MainActivity extends AppCompatActivity implements SensorEventListener, View.OnClickListener {
 
     TextView tv_acc;
     TextView tv_gyo;
@@ -31,6 +32,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     SensorManager sm;
 
     Handler handler;
+
+    private ArrayStore arrayStore;
 
     private float[] rotations, accs, mags, oris, gyos, myoris;
     private float dt = 0.01f;
@@ -82,7 +85,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         gyos = new float[3];
         myoris = new float[3];
 
+        arrayStore = new ArrayStore();
+
+        Button btn_show = findViewById(R.id.btn_show);
+        Button btn_store = findViewById(R.id.btn_store);
+        btn_show.setOnClickListener(this);
+        btn_store.setOnClickListener(this);
+
         new Thread(wifiScanR).start();
+
 
     }
 
@@ -92,6 +103,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         sm.unregisterListener(this);
 
         handler.removeCallbacks(wifiScanR);
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()){
+            case R.id.btn_show:
+                arrayStore.delFile();
+
+                break;
+            case R.id.btn_store:
+                arrayStore.storeElements();
+                arrayStore.storePdr();
+                break;
+        }
     }
 
     @Override
@@ -112,6 +137,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             case Sensor.TYPE_ACCELEROMETER:
                 tv_acc.setText(retSensorInfo(triple).toString());
                 accs = triple;
+                arrayStore.addListElements(triple);
                 break;
             case Sensor.TYPE_GYROSCOPE:
                 tv_gyo.setText(retSensorInfo(triple).toString());
@@ -148,20 +174,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             List<ScanResult> scanResults;
             scanResults = wifiManager.getScanResults();
             final StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < scanResults.size(); i++) {
-                sb.append(scanResults.get(i).timestamp);
-                sb.append("\t");
-                sb.append(scanResults.get(i).BSSID);
-                sb.append("\t");
-                sb.append(scanResults.get(i).SSID);
-                sb.append("\t");
-                sb.append(scanResults.get(i).level);
-                sb.append("\n");
+            for (ScanResult sr:scanResults){
+                sb.append(sr.timestamp).append("\t");
+                sb.append(sr.BSSID).append("\t");
+                sb.append(sr.SSID).append("\t");
+                sb.append(sr.level).append("\n");
+                if(sr.SSID.equals("FAST_204"))
+                    arrayStore.addElements(sr.level);
             }
 
 //            Log.e("test", sb.toString());
             tvset(sb);
+
             handler.postDelayed(this, 1000);
+
         }
     };
 
@@ -234,5 +260,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         return gravity / 10;
     }
+
 
 }
