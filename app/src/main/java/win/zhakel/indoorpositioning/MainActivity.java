@@ -10,9 +10,13 @@ import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import static java.lang.Thread.sleep;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -78,32 +82,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         gyos = new float[3];
         myoris = new float[3];
 
-        //进行wifi扫描结果显示
-//        Runnable runnable = new Runnable() {
-//            @Override
-//            public void run() {
-//                List<ScanResult> scanResults;
-//
-//                scanResults = wifiManager.getScanResults();
-//                final StringBuilder sb = new StringBuilder();
-//                for (int i = 0; i < scanResults.size(); i++) {
-//                    sb.append(scanResults.get(i).timestamp);
-//                    sb.append("\t");
-//                    sb.append(scanResults.get(i).BSSID);
-//                    sb.append("\t");
-//                    sb.append(scanResults.get(i).SSID);
-//                    sb.append("\t");
-//                    sb.append(scanResults.get(i).level);
-//                    sb.append("\n");
-//                }
-//
-//                tvset(sb);
-//
-//                handler.postDelayed(this,500);
-//            }
-//        };
         new Thread(wifiScanR).start();
-        float mytest = 0.01f;
 
     }
 
@@ -190,7 +169,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         SensorManager.getRotationMatrix(rotations, null, accs, mags);
         SensorManager.getOrientation(rotations, oris);
         for (int i = 0; i < 3; i++) {
-            oris[i] = (float) (oris[i]/(Math.PI)*180);
+            oris[i] = (float) (oris[i] / (Math.PI) * 180);
         }
     }
 
@@ -203,6 +182,57 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
 
         return stringBuilder;
+    }
+
+    //TODO: 方向角计算函数设计
+    private float getStepOri(float[] g, float[] a, float[] m) {
+        float orientation = 0.0f;
+
+        return (float) (orientation * 180 / Math.PI);
+    }
+
+    //TODO: 步长计算函数
+    private float getStepLength(float p) {
+//        float stepLength = 0.0f;
+
+
+        return 0;
+    }
+
+    //TODO: 步子检测函数
+    private float getStepPeriod(float[] a) {
+//        float period = 0.0f;
+
+        return 0;
+    }
+
+    // TODO: 滤波器设计
+
+    // 加速度数据的平方和的开根
+    private float getATotal(float[] a) {
+        return (float) Math.sqrt(Math.pow(a[0], 2) + Math.pow(a[1], 2) + Math.pow(a[2], 2));
+    }
+
+    // 重力加速度获取
+    private float getGravity() throws InterruptedException {
+        List<float[]> lists = new ArrayList<>();
+        int i = 0;
+        while (i++ < 10) {
+            lists.add(accs);
+            sleep(100);
+        }
+        List<Float> listsTotal = new ArrayList<>();
+        while (!lists.isEmpty()) {
+            listsTotal.add(getATotal(lists.remove(0)));
+//            lists.remove(0);
+        }
+
+        float gravity = 0.0f;
+        while (!listsTotal.isEmpty()) {
+            gravity += listsTotal.remove(0);
+        }
+
+        return gravity / 10;
     }
 
 }
