@@ -20,15 +20,15 @@ import static android.content.ContentValues.TAG;
 
 class ArrayStore {
     private ArrayList<Float> arrays;
-    private ArrayList<float[]> arrayLists;
+//    private ArrayList<float[]> arrayLists;
 //    private int elementsNumber;
     private String File_Name;
 
-    ArrayStore() {
-        arrays = new ArrayList<>();
-        arrayLists = new ArrayList<>();
+    ArrayStore(int size, String name) {
+        arrays = new ArrayList<>(size);
+//        arrayLists = new ArrayList<>();
 //        elementsNumber = 10;
-        File_Name = "wifi.txt";
+        File_Name = name+".txt";
     }
 
 //    ArrayStore(int num, String name) {
@@ -45,30 +45,30 @@ class ArrayStore {
 //
 //    }
 
-    void addListElements(float[] list){
-        arrayLists.add(list);
-    }
+//    void addListElements(float[] list){
+//        arrayLists.add(list);
+//    }
 
-    void storePdr(){
-        try {
-            File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/pdr.txt");
-
-            FileOutputStream fos = new FileOutputStream(file,true);
-
-            for(float[] f : arrayLists){
-                for(float ff:f){
-                    fos.write(String.valueOf(ff).getBytes());
-                    fos.write("\t".getBytes());
-                }
-            }
-//            fos.write(arrayLists.toString().getBytes());
-            arrayLists.clear();
-            fos.close();
-            Log.i(TAG, "storeElements file path: " + file.getAbsolutePath());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+//    void storePdr(){
+//        try {
+//            File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/pdr.txt");
+//
+//            FileOutputStream fos = new FileOutputStream(file,true);
+//
+//            for(float[] f : arrayLists){
+//                for(float ff:f){
+//                    fos.write(String.valueOf(ff).getBytes());
+//                    fos.write("\t".getBytes());
+//                }
+//            }
+////            fos.write(arrayLists.toString().getBytes());
+//            arrayLists.clear();
+//            fos.close();
+//            Log.i(TAG, "storeElements file path: " + file.getAbsolutePath());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     void addElements(float element) {
         arrays.add(element);
@@ -120,6 +120,17 @@ class ArrayStore {
                 Log.i(TAG, "delFile: no file.\n");
         }
 
+    }
+
+    void printArray(){
+        if(arrays.size()>20) {
+            List<Float> floats = arrays.subList(arrays.size() - 11, arrays.size() - 1);
+            Log.i(TAG, "printArray: " + floats.toString());
+        }
+    }
+
+    int getArraySize(){
+        return arrays.size();
     }
 
 }

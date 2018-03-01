@@ -10,6 +10,7 @@ import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -21,6 +22,7 @@ import static java.lang.Thread.sleep;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener, View.OnClickListener {
 
+    private static final String TAG = "mainTag";
     TextView tv_acc;
     TextView tv_gyo;
     TextView tv_mag;
@@ -31,12 +33,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     WifiManager wifiManager;
     SensorManager sm;
 
-    Handler handler;
+    Handler wifi_handler;
+    Handler oris_handler;
+    Handler pdr_handler;
 
-    private ArrayStore arrayStore;
+    private ArrayStore wifiStore;
+    private ArrayStore pdrStore;
 
     private float[] rotations, accs, mags, oris, gyos, myoris;
-    private float dt = 0.01f;
+    private float dt = 0.0001f;
+
+    private int count = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +59,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         //获取wifimanager
         wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
 
-        handler = new Handler();
+        wifi_handler = new Handler();
+        oris_handler = new Handler();
+        pdr_handler = new Handler();
 
         sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         assert sm != null;
@@ -85,7 +94,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         gyos = new float[3];
         myoris = new float[3];
 
-        arrayStore = new ArrayStore();
+        wifiStore = new ArrayStore(100,"wifi");
+        pdrStore = new ArrayStore(10000,"pdr");
 
         Button btn_show = findViewById(R.id.btn_show);
         Button btn_store = findViewById(R.id.btn_store);
@@ -93,6 +103,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         btn_store.setOnClickListener(this);
 
         new Thread(wifiScanR).start();
+        new Thread(getOrisRunnable).start();
+        new Thread(pdrRunnable).start();
 
 
     }
@@ -102,19 +114,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onDestroy();
         sm.unregisterListener(this);
 
-        handler.removeCallbacks(wifiScanR);
+        wifi_handler.removeCallbacks(wifiScanR);
+        pdr_handler.removeCallbacks(pdrRunnable);
+        oris_handler.removeCallbacks(getOrisRunnable);
     }
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()){
+        switch (view.getId()) {
             case R.id.btn_show:
-                arrayStore.delFile();
+                wifiStore.delFile();
+                pdrStore.delFile();
 
                 break;
             case R.id.btn_store:
-                arrayStore.storeElements();
-                arrayStore.storePdr();
+                wifiStore.storeElements();
+                pdrStore.storeElements();
                 break;
         }
     }
@@ -128,19 +143,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 //            stringBuffer.append(aTriple);
 //            stringBuffer.append("\n");
 //        }
-        if (Math.abs(accs[0]) > dt && Math.abs(mags[0]) > dt) {
-            getOris();
-            tv_ori.setText(retSensorInfo(oris).toString());
-        }
+//        if (Math.abs(accs[0]) > dt && Math.abs(mags[0]) > dt) {
+//            getOris();
+//            tv_ori.setText(retSensorInfo(oris).toString());
+//        }
 
         switch (sensorEvent.sensor.getType()) {
             case Sensor.TYPE_ACCELEROMETER:
                 tv_acc.setText(retSensorInfo(triple).toString());
                 accs = triple;
-                arrayStore.addListElements(triple);
                 break;
             case Sensor.TYPE_GYROSCOPE:
                 tv_gyo.setText(retSensorInfo(triple).toString());
+                gyos = triple;
                 break;
             case Sensor.TYPE_MAGNETIC_FIELD:
                 tv_mag.setText(retSensorInfo(triple).toString());
@@ -156,11 +171,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
-    private void tvset(final StringBuilder sb) {
+    private void tvset(final TextView tv, final StringBuilder sb) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                tv_wifi.setText(sb.toString());
+                tv.setText(sb.toString());
             }
         });
     }
@@ -174,25 +189,74 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             List<ScanResult> scanResults;
             scanResults = wifiManager.getScanResults();
             final StringBuilder sb = new StringBuilder();
-            for (ScanResult sr:scanResults){
+            for (ScanResult sr : scanResults) {
                 sb.append(sr.timestamp).append("\t");
                 sb.append(sr.BSSID).append("\t");
                 sb.append(sr.SSID).append("\t");
                 sb.append(sr.level).append("\n");
-                if(sr.SSID.equals("FAST_204"))
-                    arrayStore.addElements(sr.level);
+                if (sr.SSID.equals("TP-LINK_Zha"))
+                    wifiStore.addElements(sr.level);
             }
 
 //            Log.e("test", sb.toString());
-            tvset(sb);
+            tvset(tv_wifi, sb);
 
-            handler.postDelayed(this, 1000);
+            wifi_handler.postDelayed(this, 1000);
 
         }
     };
 
-    private void getOris() {
-        SensorManager.getRotationMatrix(rotations, null, accs, mags);
+    Runnable getOrisRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (Math.abs(accs[0]) > dt && Math.abs(mags[0]) > dt) {
+                getOris(accs, mags);
+                tvset(tv_ori, retSensorInfo(oris));
+
+//                tv_ori.setText(retSensorInfo(oris).toString());
+
+            }
+            oris_handler.postDelayed(this, 50);
+            //测试频率
+//            count++;
+//            if(count==100){
+//                Log.i(TAG, "count=100");
+//                count=0;
+//            }
+        }
+    };
+
+    Runnable pdrRunnable = new Runnable() {
+        @Override
+        public void run() {
+            count++;
+            if (Math.abs(accs[0]) > dt && Math.abs(mags[0]) > dt && Math.abs(gyos[0]) > dt) {
+                pdrStore.addElements(count);
+                for (float fa : accs)
+                    pdrStore.addElements(fa);
+
+                for (float fm : mags)
+                    pdrStore.addElements(fm);
+
+                for (float fg : gyos)
+                    pdrStore.addElements(fg);
+//                pdrStore.addElements(0.00f);
+
+//                tv_ori.setText(retSensorInfo(oris).toString());
+
+            }
+            if(count%40==0) {
+//                pdrStore.printArray();
+//                Log.i(TAG, "run: hello array size is " + pdrStore.getArraySize());
+                Log.i(TAG, "run");
+            }
+            pdr_handler.postDelayed(this, 50);
+
+        }
+    };
+
+    private void getOris(float[] a, float[] m) {
+        SensorManager.getRotationMatrix(rotations, null, a, m);
         SensorManager.getOrientation(rotations, oris);
         for (int i = 0; i < 3; i++) {
             oris[i] = (float) (oris[i] / (Math.PI) * 180);
