@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     TextView tv_ori;
     TextView tv_wifi;
     TextView tv_myori;
+    EditText et_ipid;
 
     WifiManager wifiManager;
     SensorManager sm;
@@ -55,6 +57,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         tv_mag = findViewById(R.id.tv_mag);
         tv_wifi = findViewById(R.id.tv_wifi);
         tv_myori = findViewById(R.id.tv_myori);
+        et_ipid = findViewById(R.id.et_ipid);
 
         //获取wifimanager
         wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
@@ -81,11 +84,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         Sensor acc = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         Sensor gyo = sm.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         Sensor mag = sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        Sensor ori = sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);
 
         //注册传感器
         sm.registerListener(this, acc, SensorManager.SENSOR_DELAY_GAME);
         sm.registerListener(this, gyo, SensorManager.SENSOR_DELAY_GAME);
         sm.registerListener(this, mag, SensorManager.SENSOR_DELAY_GAME);
+        sm.registerListener(this, ori, SensorManager.SENSOR_DELAY_GAME);
 
         rotations = new float[9];
         accs = new float[3];
@@ -94,8 +99,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         gyos = new float[3];
         myoris = new float[3];
 
-        wifiStore = new ArrayStore(100,"wifi");
-        pdrStore = new ArrayStore(10000,"pdr");
+        wifiStore = new ArrayStore(100, "wifi");
+        pdrStore = new ArrayStore(10000, "pdr");
 
         Button btn_show = findViewById(R.id.btn_show);
         Button btn_store = findViewById(R.id.btn_store);
@@ -161,6 +166,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 tv_mag.setText(retSensorInfo(triple).toString());
                 mags = triple;
                 break;
+            case Sensor.TYPE_ORIENTATION:
+                tv_myori.setText(retSensorInfo(triple).toString());
             default:
                 break;
         }
@@ -194,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 sb.append(sr.BSSID).append("\t");
                 sb.append(sr.SSID).append("\t");
                 sb.append(sr.level).append("\n");
-                if (sr.SSID.equals("TP-LINK_Zha"))
+                if (sr.SSID.equals(et_ipid.getText().toString().trim()))
                     wifiStore.addElements(sr.level);
             }
 
@@ -242,10 +249,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     pdrStore.addElements(fg);
 //                pdrStore.addElements(0.00f);
 
+                for (float fo : oris)
+                    pdrStore.addElements(fo);
+
 //                tv_ori.setText(retSensorInfo(oris).toString());
 
             }
-            if(count%40==0) {
+            if (count % 40 == 0) {
 //                pdrStore.printArray();
 //                Log.i(TAG, "run: hello array size is " + pdrStore.getArraySize());
                 Log.i(TAG, "run");
@@ -259,7 +269,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         SensorManager.getRotationMatrix(rotations, null, a, m);
         SensorManager.getOrientation(rotations, oris);
         for (int i = 0; i < 3; i++) {
-            oris[i] = (float) (oris[i] / (Math.PI) * 180);
+            oris[i] = (float) (oris[i] * 180 / Math.PI);
+            if(oris[i]<0)
+                oris[i] += 360;
         }
     }
 
@@ -284,7 +296,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     //TODO: 步长计算函数
     private float getStepLength(float p) {
 //        float stepLength = 0.0f;
-
 
         return 0;
     }
